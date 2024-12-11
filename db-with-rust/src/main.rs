@@ -4,6 +4,15 @@ use mysql::*;
 use std::env;
 use std::io::{self, Write};
 
+struct Club {
+    clubid: i32,
+    clubname: String,
+    location: Option<String>,
+    homepage: Option<String>,
+    leaderid: Option<String>,
+    professorid: Option<String>,
+}
+
 fn main() {
     dotenv().ok(); // .env 파일 불러오기
 
@@ -26,6 +35,12 @@ fn main() {
                                 println!("프로그램을 종료합니다...");
                                 break;
                             },
+                            "1" => {
+                                match retriever_club_table(&mut conn) {
+                                    Ok(_) => {},
+                                    Err(_) => println!("동아리 전체 목록을 조회하는 과정에서 에러가 발생했습니다.")
+                                }
+                            },
                             _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
                         }
                     }
@@ -47,7 +62,7 @@ fn print_menu() {
     println!("------------------------------------------------------------");
     println!("                 소프트웨어학부 동아리 관리 시스템                  ");
     println!("------------------------------------------------------------");
-    println!("  1. 동아리 전체 목록 조회             2.                        ");
+    println!("  1. 동아리 전체 목록 조회            2.                        ");
     println!("  3.                             4.                        ");
     println!("  5.                             6.                        ");
     println!("  7.                             8.                        ");
@@ -109,4 +124,32 @@ fn login_db() -> std::result::Result<mysql::Pool, Box<dyn std::error::Error>> {
             }
         }
     }
+}
+
+fn retriever_club_table(conn:&mut  PooledConn) -> std::result::Result<(), Box<dyn std::error::Error>>{
+    println!("\n동아리 전체 목록을 출력합니다.");
+    let result = conn.query_map(
+        "SELECT * FROM Club",
+        |(clubid, clubname, location, homepage, leaderid, professorid)| Club {
+            clubid,
+            clubname,
+            location,
+            homepage,
+            leaderid,
+            professorid,
+        },
+    )?;
+    for r in result {
+        println!(
+            "{} {} {} {} {} {}",
+            r.clubid,
+            r.clubname,
+            r.location.unwrap_or("NULL".to_string()),
+            r.homepage.unwrap_or("NULL".to_string()),
+            r.leaderid.unwrap_or("NULL".to_string()),
+            r.professorid.unwrap_or("NULL".to_string()),
+        );
+    }
+
+    Ok(())
 }
