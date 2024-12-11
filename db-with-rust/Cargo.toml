@@ -1,0 +1,8 @@
+[package]
+name = "db-with-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mysql = "20.0.2"
+dotenv = "0.15.0"
