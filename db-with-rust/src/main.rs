@@ -13,6 +13,17 @@ struct Club {
     professorid: Option<String>,
 }
 
+enum TableList {
+    Professor,
+    Club,
+    Member,
+    Project,
+    ProjectParticipation,
+    Post,
+    Comment,
+    Budget,
+}
+
 fn main() {
     dotenv().ok(); // .env 파일 불러오기
 
@@ -24,22 +35,15 @@ fn main() {
                     'menu: loop {
                         print_menu();
                         
-                        let mut user_input = String::new();
-                        io::stdin()
-                            .read_line(&mut user_input)
-                            .expect("failed to read line");
-                        let user_input = user_input.trim();
+                        let mut user_input = get_input();
                         
-                        match user_input {
+                        match user_input.as_str() {
                             "99" => {
                                 println!("프로그램을 종료합니다...");
                                 break;
                             },
                             "1" => {
-                                match retriever_club_table(&mut conn) {
-                                    Ok(_) => {},
-                                    Err(_) => println!("동아리 전체 목록을 조회하는 과정에서 에러가 발생했습니다.")
-                                }
+                                club_management(&mut conn);
                             },
                             _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
                         }
@@ -62,13 +66,29 @@ fn print_menu() {
     println!("------------------------------------------------------------");
     println!("                 소프트웨어학부 동아리 관리 시스템                  ");
     println!("------------------------------------------------------------");
-    println!("  1. 동아리 전체 목록 조회            2.                        ");
-    println!("  3.                             4.                        ");
+    println!("  1. 동아리 관리            2.                        ");
+    println!("  3                      4.                        ");
     println!("  5.                             6.                        ");
     println!("  7.                             8.                        ");
     println!("  9.                            10.                        ");
     println!(" 11.                            12.                        ");
-    println!("                                99. quit                   ");
+    println!("                                99. 시스템 종료               ");
+    println!("------------------------------------------------------------");
+    print!("이동을 원하는 메뉴를 선택해주세요: ");
+    let _ = io::stdout().flush();
+}
+
+
+fn print_club_menu() {
+    println!("                                                            ");
+    println!("                                                            ");
+    println!("------------------------------------------------------------");
+    println!("           소프트웨어학부 동아리 관리 시스템 - 동아리 관리             ");
+    println!("------------------------------------------------------------");
+    println!("  1. 동아리 전체 목록 조회            2. 동아리 신규 등록           ");
+    println!("  3. 동아리 검색                    4. 동아리 정보 변경           ");
+    println!("  5. 동아리 삭제                    6.                        ");
+    println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
     let _ = io::stdout().flush();
@@ -152,4 +172,35 @@ fn retriever_club_table(conn:&mut  PooledConn) -> std::result::Result<(), Box<dy
     }
 
     Ok(())
+}
+
+fn get_input() -> String {
+    let mut user_input = String::new();
+    io::stdin()
+        .read_line(&mut user_input)
+        .expect("failed to read line");
+    let input = user_input.trim();
+
+    input.to_string()
+}
+
+fn club_management(conn:&mut  PooledConn) {
+    loop {
+        print_club_menu();
+        let input = get_input();
+
+        match input.as_str() {
+            "1" => {
+                match retriever_club_table(conn) {
+                    Ok(_) => {},
+                    Err(_) => println!("동아리 전체 목록을 조회하는 과정에서 에러가 발생했습니다.")
+                }
+            },
+            "99" => {
+                break;
+            },
+            _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
+        }
+        
+    }
 }
