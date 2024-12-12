@@ -502,13 +502,22 @@ fn budget_management(conn: &mut PooledConn) {
                 }
             },
             "3" => {
-                 
+                match search_data_table(conn, TableList::Budget) {
+                    Ok(_) => {},
+                    Err(_) => println!("예산 내역을 검색하는 과정에서 에러가 발생했습니다.")
+                }
             },
             "4" => {
-                
+                match update_data_table(conn, TableList::Budget) {
+                    Ok(_) => {},
+                    Err(_) => println!("예산 내역을 수정하는 과정에서 에러가 발생했습니다.")
+                }
             },
             "5" => {
-
+                match delete_data_table(conn, TableList::Budget) {
+                    Ok(_) => {},
+                    Err(_) => println!("예산 내역을 삭제하는 과정에서 에러가 발생했습니다.")
+                }
             }
             "99" => {
                 break;
@@ -975,8 +984,55 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
             }
         }
         TableList::Budget => {
-        
+            print!("사용 유형: ");
+            let _ = io::stdout().flush();
+            let btype = get_input();
+
+            print!("사용 내역: ");
+            let _ = io::stdout().flush();
+            let content = get_input();
+
+            print!("사용일자 (YYYY-MM-DD): ");
+            let _ = io::stdout().flush();
+            let date = get_input();
+
+            // 날짜 형식 검증
+            let parsed_date = match NaiveDate::parse_from_str(&date, "%Y-%m-%d") {
+                Ok(d) => d,
+                Err(_) => {
+                    println!("잘못된 날짜 형식입니다. YYYY-MM-DD 형식이어야 합니다.");
+                    return Ok(());
+                }
+            };
+
+            print!("사용금액: ");
+            let _ = io::stdout().flush();
+            let price = get_input();
+
+            print!("사용 동아리(담당자): ");
+            let _ = io::stdout().flush();
+            let studentid = get_input();
+
+            let result = conn.exec_drop(
+                "insert into Budget(type, content, date, price, studentID) 
+                values (:btype, :content, :date, :price, :studentid)",
+                params! {
+                    "btype" => btype,
+                    "content" => content,
+                    "date" => parsed_date, 
+                    "price" => price,
+                    "studentid" => studentid
+                }
+            );
+
+            match result {
+                Ok(()) => {
+                    println!("신규 예산 내역 등록이 완료되었습니다.");
+                }
+                Err(_) => println!("cbnu db insert error"),
+            }
         }
+
     }
     Ok(())
 }
@@ -1203,8 +1259,81 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }    
         TableList::Budget => {
+            print!("수정할 예산의 번호를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let id = get_input();
         
-        }             
+            // 기존 데이터 가져오기
+            let existing: Option<(i32, String, String, NaiveDate, i32, String)> = conn.exec_first(
+                "SELECT budgetID, type, content, date, price, studentID FROM Budget WHERE budgetID = :id",
+                params! { "id" => &id },
+            )?;
+        
+            if let Some((budgetid, btype, content, date, price, studentid)) = existing {
+                print!(
+                    "사용내역을 입력해주세요 (기존: {}): ",
+                    content
+                );
+                let _ = io::stdout().flush();
+                let new_content = get_input();
+        
+                print!(
+                    "사용일자를 입력해주세요 (기존: {}): ",
+                    date
+                );
+                let _ = io::stdout().flush();
+                let new_date_input = get_input();
+        
+                print!(
+                    "사용금액을 입력해주세요 (기존: {}): ",
+                    price
+                );
+                let _ = io::stdout().flush();
+                let new_price_input = get_input();
+        
+                // 새로운 사용일자 파싱
+                let new_date = if new_date_input.trim().is_empty() {
+                    date // 기존 값 유지
+                } else {
+                    NaiveDate::parse_from_str(&new_date_input, "%Y-%m-%d").unwrap_or_else(|_| {
+                        panic!("날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식이어야 합니다.");
+                    })
+                };
+        
+                // 새로운 사용금액 처리
+                let new_price = if new_price_input.trim().is_empty() {
+                    price // 기존 값 유지
+                } else {
+                    new_price_input.trim().parse::<i32>().unwrap_or_else(|_| {
+                        panic!("금액은 숫자로 입력해야 합니다.");
+                    })
+                };
+        
+                // 새로운 사용내역 처리
+                let final_content = if new_content.trim().is_empty() {
+                    content.clone() // 기존 값 유지
+                } else {
+                    new_content
+                };
+        
+                // Budget 테이블 업데이트
+                conn.exec_drop(
+                    "UPDATE Budget 
+                     SET content = :content, date = :date, price = :price 
+                     WHERE budgetID = :id",
+                    params! {
+                        "content" => final_content,
+                        "date" => new_date,
+                        "price" => new_price,
+                        "id" => budgetid,
+                    },
+                )?;
+        
+                println!("예산 정보가 성공적으로 수정되었습니다.");
+            } else {
+                println!("존재하지 않는 예산 번호입니다.");
+            }
+        }                     
     }
     Ok(())
 }
@@ -1367,7 +1496,51 @@ fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             
         }
         TableList::Budget => {
+            print!("검색할 예산 사용 내역을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let content = get_input();
         
+            // 예산 사용 내역 검색
+            let result: Vec<Budget> = conn.exec_map(
+                "SELECT budgetID, type, content, date, price, studentID 
+                    FROM Budget 
+                    WHERE content LIKE :content",
+                params! { "content" => format!("%{}%", content) },
+                |(budgetid, r#type, content, date, price, studentid): (
+                    i32,
+                    String,
+                    String,
+                    NaiveDate,
+                    i32,
+                    String,
+                )| {
+                    Budget {
+                        budgetid,
+                        r#type,
+                        content,
+                        date: date.format("%Y-%m-%d").to_string(),
+                        price,
+                        studentid,  
+                }
+            },
+            )?;
+        
+            if result.is_empty() {
+                println!("검색 결과가 없습니다.");
+            } else {
+                println!("검색 결과:");
+                for b in result {
+                    println!(
+                        "예산 ID: {}, 유형: {}, 내역: {}, 날짜: {}, 금액: {}, 담당자: {}",
+                        b.budgetid,
+                        b.r#type,
+                        b.content,
+                        b.date,
+                        b.price,
+                        b.studentid
+                    );
+                }
+            }   
         }
     }
     Ok(())
@@ -1492,7 +1665,19 @@ fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }     
         TableList::Budget => {
-        
+            print!("삭제할 예산의 번호를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let id = get_input();
+
+            let delete_result = conn.exec_drop(
+                "DELETE FROM Budget WHERE budgetID = :id",
+                params! { "id" => &id },
+            );
+
+            match delete_result {
+                Ok(_) => println!("선택한 예산 내역이 성공적으로 삭제되었습니다."),
+                Err(e) => println!("예산 내역 삭제 중 오류 발생: {}", e),
+            }
         }      
     }
     Ok(())
