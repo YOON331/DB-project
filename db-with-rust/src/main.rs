@@ -467,13 +467,14 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
             let club_professor = process_null_input(get_input());
 
             let result = conn.exec_drop(
-                "INSERT INTO Club (clubName, location, homepage, leaderID, professorID) VALUES (:clubName, :location, :homepage, :leaderID, :professorID)",
+                "INSERT INTO Club (clubName, location, homepage, leaderID, professorID) 
+                VALUES (:clubname, :location, :homepage, :leaderid, :professorid)",
                 params! {
-                    "clubName" => club_name,
+                    "clubname" => club_name,
                     "location" => club_location,
                     "homepage" => club_homepage,
-                    "leaderID" => club_leader,
-                    "professorID" => club_professor,
+                    "leaderid" => club_leader,
+                    "professorid" => club_professor,
                 },
             );
 
@@ -553,7 +554,6 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
                 return Ok(());
             }
             
-
             // 생년월일 처리
             let birth_date = NaiveDate::parse_from_str(&birth, "%Y-%m-%d")
                 .map_err(|_| "유효하지 않은 생년월일 형식입니다")?;
@@ -561,7 +561,6 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
             // 가입일자 처리
             let join_date = NaiveDate::parse_from_str(&joindate, "%Y-%m-%d")
                 .map_err(|_| "유효하지 않은 가입일자 형식입니다")?;
-
                 
             // INSERT INTO Member 실행
             let result = conn.exec_drop(
@@ -597,8 +596,4 @@ fn process_null_input(input: String) -> Option<String> {
     } else {
         Some(input)
     }
-}
-
-fn is_valid_date(date: &str) -> bool {
-    chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok()
 }
