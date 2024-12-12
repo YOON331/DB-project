@@ -41,12 +41,18 @@ struct Project {
     clubid: i32,
 }
 
+struct ProjectParticipation {
+    projectid: i32,
+    studentid: String,
+    pdate: String,
+}
+
 enum TableList {
     Professor,
     Club,
     Member,
     Project,
-    // ProjectParticipation,
+    ProjectParticipation,
     // Post,
     // Comment,
     // Budget,
@@ -59,6 +65,7 @@ impl TableList {
             TableList::Club => "Club",
             TableList::Member => "Member",
             TableList::Project => "Project",
+            TableList::ProjectParticipation => "ProjectParticipation",
         }
     }
 }
@@ -189,6 +196,7 @@ fn print_proj_menu() {
     println!("  3. 프로젝트 검색 ");
     println!("  4. 프로젝트 정보 변경 ");
     println!("  5. 프로젝트 삭제");
+    println!("  6. 프로젝트 참여자 목록 조회");
     println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
@@ -362,6 +370,35 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
                     r.startdate.unwrap_or("NULL".to_string()),
                     r.enddate.unwrap_or("NULL".to_string()),
                     r.clubid, 
+                );
+            }
+        }
+        TableList::ProjectParticipation => {
+            let result: Vec<(i32, String, String, String, String)> = conn.exec_map(
+                "SELECT 
+                    pp.projectID, 
+                    pp.studentID, 
+                    m.name AS studentName, 
+                    c.clubName AS clubName, 
+                    p.name AS projectName 
+                FROM 
+                    ProjectParticipation pp
+                JOIN 
+                    Member m ON pp.studentID = m.studentID
+                JOIN 
+                    Project p ON pp.projectID = p.projectID
+                JOIN 
+                    Club c ON p.clubID = c.clubID",
+                (),
+                |(projectid, studentid, student_name, club_name, project_name)| {
+                    (projectid, studentid, student_name, club_name, project_name)
+                },
+            )?;
+        
+            for (projectid, studentid, student_name, club_name, project_name) in result {
+                println!(
+                    "프로젝트 ID: {}, 학생 ID: {}, 학생 이름: {}, 동아리 이름: {}, 프로젝트 이름: {}",
+                    projectid, studentid, student_name, club_name, project_name
                 );
             }
         }
@@ -551,6 +588,12 @@ fn proj_management(conn: &mut PooledConn) {
             },
             "5" => {
                 match delete_data_table(conn, TableList::Project) {
+                    Ok(_) => {},
+                    Err(e) => println!("삭제 중 에러 발생: {}", e),
+                }
+            }
+            "6" => {
+                match retriever_club_table(conn, TableList::ProjectParticipation) {
                     Ok(_) => {},
                     Err(e) => println!("삭제 중 에러 발생: {}", e),
                 }
@@ -764,6 +807,9 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
                 Err(e) => println!("cbnu db insert error: {}", e),
             }
         }
+        TableList::ProjectParticipation => {
+
+        }
     }
     Ok(())
 }
@@ -947,7 +993,10 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             } else {
                 println!("존재하지 않는 프로젝트입니다.");
             }
-        }            
+        }       
+        TableList::ProjectParticipation => {
+            
+        }     
     }
     Ok(())
 }
@@ -1106,6 +1155,9 @@ fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
                 }
             }
         }
+        TableList::ProjectParticipation => {
+            
+        }
     }
     Ok(())
 }
@@ -1171,6 +1223,9 @@ fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
                 Ok(_) => println!("프로젝트가 성공적으로 삭제되었습니다."),
                 Err(e) => println!("프로젝트 삭제 중 오류 발생: {}", e),
             }
+        }
+        TableList::ProjectParticipation => {
+            
         }
     }
     Ok(())
