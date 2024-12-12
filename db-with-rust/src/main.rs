@@ -47,6 +47,15 @@ struct ProjectParticipation {
     pdate: String,
 }
 
+struct Budget {
+    budgetid: i32,
+    r#type: String,
+    content: String,
+    date: String,
+    price: i32,
+    studentid: String,
+}
+
 enum TableList {
     Professor,
     Club,
@@ -55,7 +64,7 @@ enum TableList {
     ProjectParticipation,
     // Post,
     // Comment,
-    // Budget,
+    Budget,
 }
 
 impl TableList {
@@ -66,6 +75,7 @@ impl TableList {
             TableList::Member => "Member",
             TableList::Project => "Project",
             TableList::ProjectParticipation => "ProjectParticipation",
+            TableList::Budget => "Budget",
         }
     }
 }
@@ -100,6 +110,9 @@ fn main() {
                             }
                             "4" => {
                                 proj_management(&mut conn);
+                            }
+                            "6" => {
+                                budget_management(&mut conn);
                             }
                             _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
                         }
@@ -200,6 +213,23 @@ fn print_proj_menu() {
     println!("  7. 프로젝트 참여자 신규 등록");
     println!("  8. 프로젝트 참여자 정보 수정");
     println!("  9. 프로젝트 참여자 정보 삭제");
+    println!("                                99. 이전 메뉴로 이동            ");
+    println!("------------------------------------------------------------");
+    print!("이동을 원하는 메뉴를 선택해주세요: ");
+    let _ = io::stdout().flush();
+}
+
+fn print_budget_menu() {
+    println!("                                                            ");
+    println!("                                                            ");
+    println!("------------------------------------------------------------");
+    println!("            소프트웨어학부 동아리 관리 시스템 - 예산 관리              ");
+    println!("------------------------------------------------------------");
+    println!("  1. 예산 내역 전체 조회");
+    println!("  2. 예산 내역 등록  ");
+    println!("  3. 예산 내역 검색 ");
+    println!("  4. 예산 내역 변경 ");
+    println!("  5. 예산 내역 삭제");
     println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
@@ -406,6 +436,39 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
                 );
             }
         }
+        TableList::Budget => {
+            let result: Vec<Budget> = conn.query_map(
+                format!("SELECT * FROM {}", table.table_name()),
+                |(
+                    budgetid,
+                    r#type,
+                    content,                    
+                    date,
+                    price,
+                    studentid,               
+                ): (i32, String, String, String, i32, String)| {
+                    Budget{
+                        budgetid,
+                        r#type,
+                        content,
+                        date,
+                        price,
+                        studentid,  
+                    }
+                },
+            )?;
+
+            for r in result {
+                println!("{} {} {} {} {} {}", 
+                    r.budgetid,
+                    r.r#type,
+                    r.content,
+                    r.date,
+                    r.price,
+                    r.studentid, 
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -418,6 +481,42 @@ fn get_input() -> String {
     let input = user_input.trim();
 
     input.to_string()
+}
+
+fn budget_management(conn: &mut PooledConn) {
+    loop {
+        print_budget_menu();
+        let input = get_input();
+
+        match input.as_str() {
+            "1" => {
+                match retriever_club_table(conn, TableList::Budget) {
+                    Ok(_) => {},
+                    Err(_) => println!("예산 내역을 조회하는 과정에서 에러가 발생했습니다.")
+                }
+            },
+            "2" => {
+                match insert_data_table(conn, TableList::Budget) {
+                    Ok(_) => {},
+                    Err(_) => println!("예산 내역을 등록하는 과정에서 에러가 발생했습니다.")
+                }
+            },
+            "3" => {
+                 
+            },
+            "4" => {
+                
+            },
+            "5" => {
+
+            }
+            "99" => {
+                break;
+            },
+            _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
+        }
+        
+    }
 }
 
 fn prof_manament(conn: &mut PooledConn) {
@@ -605,7 +704,7 @@ fn proj_management(conn: &mut PooledConn) {
             "7" => {
                 match insert_data_table(conn, TableList::ProjectParticipation) {
                     Ok(_) => {},
-                    Err(_) => println!("프로젝트를 등록하는 과정에서 에러가 발생했습니다.")
+                    Err(_) => println!("프로젝트 참여자를 등록하는 과정에서 에러가 발생했습니다.")
                 }
             }
             "8" => {
@@ -875,7 +974,9 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
                 Err(e) => println!("DB 삽입 오류: {}", e),
             }
         }
+        TableList::Budget => {
         
+        }
     }
     Ok(())
 }
@@ -1100,7 +1201,10 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             } else {
                 println!("존재하지 않는 프로젝트 참여자입니다.");
             }
-        }                 
+        }    
+        TableList::Budget => {
+        
+        }             
     }
     Ok(())
 }
@@ -1262,6 +1366,9 @@ fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
         TableList::ProjectParticipation => {
             
         }
+        TableList::Budget => {
+        
+        }
     }
     Ok(())
 }
@@ -1383,7 +1490,10 @@ fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
                 Ok(_) => println!("프로젝트 참여자 정보가 성공적으로 삭제되었습니다."),
                 Err(e) => println!("프로젝트 참여자 정보 삭제 중 오류 발생: {}", e),
             }
-        }            
+        }     
+        TableList::Budget => {
+        
+        }      
     }
     Ok(())
 }
