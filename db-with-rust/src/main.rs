@@ -1,9 +1,9 @@
 use dotenv::dotenv;
 use mysql::prelude::*;
 use mysql::*;
-use chrono::NaiveDate;
 use std::env;
 use std::io::{self, Write};
+use chrono::NaiveDate;
 
 struct Club {
     clubid: i32,
@@ -119,7 +119,7 @@ fn print_mem_menu() {
     println!("------------------------------------------------------------");
     println!("        소프트웨어학부 동아리 관리 시스템 - 동아리원 관리               ");
     println!("------------------------------------------------------------");
-    println!("  1. 동아리원 전체 목록 조회            2. 동아리원 신규 등록         ");
+    println!("  1. 동아리원 전체 목록 조회           2. 동아리원 신규 등록         ");
     println!("  3. 동아리원 검색                    4. 동아리원 정보 변경         ");
     println!("  5. 동아리원 정보 삭제                                         ");
     println!("                                99. 이전 메뉴로 이동            ");
@@ -142,6 +142,7 @@ fn print_prof_menu() {
     print!("이동을 원하는 메뉴를 선택해주세요: ");
     let _ = io::stdout().flush();
 }
+
 
 fn print_club_menu() {
     println!("                                                            ");
@@ -203,7 +204,7 @@ fn login_db() -> std::result::Result<mysql::Pool, Box<dyn std::error::Error>> {
             Ok(pool) => {
                 return Ok(pool);
             }
-            Err(err) => {
+            Err(_) => {
                 println!("\n ID 혹은 PW가 일치하지 않습니다. ID와 PW를 확인해주세요.");
             }
         }
@@ -322,18 +323,20 @@ fn prof_manament(conn: &mut PooledConn) {
                 }
             },
             "2" => {
-                
+                println!("등록할 교수의 정보를 정확하게 입력해주세요");
+                match insert_data_table(conn, TableList::Professor) {
+                    Ok(_) => {},
+                    Err(_) => println!("교수 정보를 등록하는 과정에서 에러가 발생했습니다.")
+                }
             },
             "3" => {
                 println!("검색할 교수의 이름을 정확하게 입력해주세요: ");
-                let _ = io::stdout().flush();
-
                 let prof_name = get_input();
                 
             },
             "4" => {
-                println!("수정할 교수의 이름을 정확하게 입력해주세요: ");
-               
+                println!("수정할 교수의 이름을 정확하게 입력해주세요");
+                
 
             },
             "5" => {
@@ -362,7 +365,11 @@ fn mem_management(conn: &mut PooledConn) {
                 }
             },
             "2" => {
-                
+                println!("신규 등록할 동아리원의 정보를 입력해주세요");
+                match insert_data_table(conn, TableList::Member) {
+                    Ok(_) => {},
+                    Err(_) => println!("동아리원을 등록하는 과정에서 에러가 발생했습니다.")
+                }
             },
             "3" => {
                 println!("검색할 동아리원의 이름을 정확하게 입력해주세요: ");
@@ -402,7 +409,11 @@ fn club_management(conn:&mut  PooledConn) {
                 }
             },
             "2" => {
-                
+                println!("신규 등록할 동아리 정보를 입력해주세요");
+                match insert_data_table(conn, TableList::Club) {
+                    Ok(_) => {},
+                    Err(_) => println!("동아리 전체 목록을 조회하는 과정에서 에러가 발생했습니다.")
+                }
             },
             "3" => {
                 println!("검색할 동아리의 이름을 정확하게 입력해주세요: ");
@@ -413,31 +424,7 @@ fn club_management(conn:&mut  PooledConn) {
             },
             "4" => {
                 println!("수정할 동아리의 이름을 정확하게 입력해주세요: ");
-                let _ = io::stdout().flush();
-                println!("동아리명: ");
-                let club_name = get_input();
-
-                println!("동아리위치: ");
-                let club_loca = get_input();
-
-                println!("동아리 홈페이지: ");
-                let club_hp = get_input();
-
-                println!("동아리 리더: ");
-                let club_leader = get_input();
-
-                println!("동아리 지도교수: ");
-                let club_prof = get_input();
                 
-                let result = conn.exec_drop(
-                    "update?? into Club(clubName, loacation, homepage, leaderID, professorID) values ( :clubName, :loacation, :homepage, :club_leader, :club_leader)",
-                    params!{"clubName"=> club_name, "loacation"=> club_loca, "homepage"=> club_hp, "club_leader"=> club_leader, "professorID" =>club_prof}
-                );
-                match result {
-                    Ok(()) => {println!("신규 동아리 등록이 완료되었습니다.")},
-                    Err(_)=>println!("cbnu db insert error"),
-                }
-
             },
             "5" => {
                 println!("삭제할 동아리의 이름을 정확하게 입력해주세요: ");
@@ -453,4 +440,165 @@ fn club_management(conn:&mut  PooledConn) {
         }
         
     }
+}
+
+
+fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Result<(), Box<dyn std::error::Error>>{
+    match table {
+        TableList::Club => {
+            print!("동아리명: ");
+            let _ = io::stdout().flush();
+            let club_name = get_input();
+
+            print!("동아리 위치(없는 경우 enter키를 눌러주세요): ");
+            let _ = io::stdout().flush();
+            let club_location = process_null_input(get_input());
+
+            print!("동아리 홈페이지(없는 경우 enter키를 눌러주세요): ");
+            let _ = io::stdout().flush();
+            let club_homepage = process_null_input(get_input());
+
+            print!("동아리 리더 학번: ");
+            let _ = io::stdout().flush();
+            let club_leader = process_null_input(get_input());
+
+            print!("동아리 지도교수 사번: ");
+            let _ = io::stdout().flush();
+            let club_professor = process_null_input(get_input());
+
+            let result = conn.exec_drop(
+                "INSERT INTO Club (clubName, location, homepage, leaderID, professorID) VALUES (:clubName, :location, :homepage, :leaderID, :professorID)",
+                params! {
+                    "clubName" => club_name,
+                    "location" => club_location,
+                    "homepage" => club_homepage,
+                    "leaderID" => club_leader,
+                    "professorID" => club_professor,
+                },
+            );
+
+            match result {
+                Ok(()) => println!("신규 동아리 등록이 완료되었습니다."),
+                Err(e) => println!("cbnu db insert error: {}", e),
+            }
+
+        }
+        TableList::Professor => {
+            print!("교수 사번: ");
+            let _ = io::stdout().flush();
+            let profid = get_input();
+
+            print!("교수 성명: ");
+            let _ = io::stdout().flush();
+            let profname = get_input();
+
+            print!("교수 전화번호: ");
+            let _ = io::stdout().flush();
+            let profphone = get_input();
+            
+            let result = conn.exec_drop(
+                "insert into Professor(professorID, name, phone) values ( :id, :name, :phone)",
+                params!{"id"=> profid, "name"=> profname, "phone"=> profphone}
+            );
+            match result {
+                Ok(()) => {println!("신규 교수 등록이 완료되었습니다.")},
+                Err(_)=>println!("cbnu db insert error"),
+            }
+        }
+        TableList::Member => {
+            print!("학번: ");
+            let _ = io::stdout().flush();
+            let studentid = get_input();
+        
+            print!("이름: ");
+            let _ = io::stdout().flush();
+            let name = get_input();
+        
+            print!("소속 학과: ");
+            let _ = io::stdout().flush();
+            let dept = get_input();
+        
+            print!("성별(M/F): ");
+            let _ = io::stdout().flush();
+            let gender = get_input();
+        
+            print!("생년월일(2000-01-01): ");
+            let _ = io::stdout().flush();
+            let birth = get_input();
+        
+            print!("전화번호(- 없이 입력): ");
+            let _ = io::stdout().flush();
+            let phone = get_input();
+        
+            print!("가입일자(2024-01-01): ");
+            let _ = io::stdout().flush();
+            let joindate = get_input();
+        
+            print!("임원여부(Y/N): ");
+            let _ = io::stdout().flush();
+            let isleader = get_input();
+        
+            print!("가입 동아리(번호 또는 이름 입력): ");
+            let _ = io::stdout().flush();
+            let joinclub = get_input();
+        
+            // 가입 동아리 번호 확인
+            let club_id: Option<i32> = conn.exec_first(
+                "SELECT clubID FROM Club WHERE clubID = :joinclub OR clubName = :joinclub",
+                params! { "joinclub" => &joinclub },
+            )?;
+        
+            if club_id.is_none() {
+                println!("동아리가 존재하지 않습니다.");
+                return Ok(());
+            }
+            
+
+            // 생년월일 처리
+            let birth_date = NaiveDate::parse_from_str(&birth, "%Y-%m-%d")
+                .map_err(|_| "유효하지 않은 생년월일 형식입니다")?;
+
+            // 가입일자 처리
+            let join_date = NaiveDate::parse_from_str(&joindate, "%Y-%m-%d")
+                .map_err(|_| "유효하지 않은 가입일자 형식입니다")?;
+
+                
+            // INSERT INTO Member 실행
+            let result = conn.exec_drop(
+                "INSERT INTO Member (studentID, name, department, gender, birth, phone, joindate, isleader, clubID)
+                VALUES (:studentid, :name, :department, :gender, :birth, :phone, :joindate, :isleader, :clubid)",
+                params! {
+                    "studentid" => studentid,
+                    "name" => name,
+                    "department" => if dept.to_lowercase() == "null" { None } else { Some(dept) },
+                    "gender" => if gender.to_lowercase() == "null" { None } else { Some(gender) },
+                    "birth" => birth_date,
+                    "phone" => if phone.to_lowercase() == "null" { None } else { Some(phone) },
+                    "joindate" => join_date,
+                    "isleader" => if isleader.to_lowercase() == "y" { "Y" } else { "N" },
+                    "clubid" => club_id.unwrap(),
+                },
+                
+            );
+        
+            match result {
+                Ok(()) => println!("신규 회원 등록이 완료되었습니다."),
+                Err(e) => println!("cbnu db insert error: {}", e),
+            }
+        }        
+   
+    }
+    Ok(())
+}
+
+fn process_null_input(input: String) -> Option<String> {
+    if input.to_lowercase() == "null" || input.is_empty() {
+        None
+    } else {
+        Some(input)
+    }
+}
+
+fn is_valid_date(date: &str) -> bool {
+    chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok()
 }
