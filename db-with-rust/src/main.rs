@@ -541,7 +541,27 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
             }
         }
         TableList::Comment => {
-
+            print!("댓글을 조회할 게시글 ID를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let post_id = get_input();
+        
+            let result: Vec<(i32, String, NaiveDate, i32, String)> = conn.exec_map(
+                "SELECT commentID, content, date, postID, studentID FROM Comment WHERE postID = :postid",
+                params! { "postid" => post_id },
+                |(comment_id, content, date, post_id, student_id)| (comment_id, content, date, post_id, student_id),
+            )?;
+        
+            if result.is_empty() {
+                println!("댓글이 없습니다.");
+            } else {
+                println!("댓글 목록:");
+                for (comment_id, content, date, post_id, student_id) in result {
+                    println!(
+                        "댓글 ID: {}, 내용: {}, 작성일: {}, 게시글 ID: {}, 작성자 ID: {}",
+                        comment_id, content, date, post_id, student_id
+                    );
+                }
+            }
         }
     }
     Ok(())
@@ -1208,7 +1228,36 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
             }
         }
         TableList::Comment => {
+            print!("댓글을 작성할 게시글 ID를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let post_id = get_input();
 
+            print!("댓글 내용: ");
+            let _ = io::stdout().flush();
+            let content = get_input();
+
+            print!("작성자 ID: ");
+            let _ = io::stdout().flush();
+            let student_id = get_input();
+
+            let date = chrono::Local::now().date_naive();
+
+            let result = conn.exec_drop(
+                "INSERT INTO Comment (content, date, postID, studentID) VALUES (:content, :date, :postid, :studentid)",
+                params! {
+                    "content" => content,
+                    "date" => date,
+                    "postid" => post_id,
+                    "studentid" => student_id,
+                },
+            );
+
+            match result {
+                Ok(()) => {
+                    println!("댓글 등록이 완료되었습니다.");
+                }
+                Err(_) => println!("cbnu db insert error"),
+            }
         }
     }
     Ok(())
@@ -1535,8 +1584,34 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             println!("게시글이 수정되었습니다.");
         }            
         TableList::Comment => {
+            print!("수정할 게시글 ID를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let post_id = get_input();
             
-        }                
+            print!("수정할 댓글 ID를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let com_id = get_input();
+        
+            print!("새로운 내용 (기존 값 유지하려면 엔터): ");
+            let _ = io::stdout().flush();
+            let new_content = get_input();
+        
+            let query_result = conn.exec_drop(
+                "UPDATE Comment 
+                 SET content = COALESCE(NULLIF(:content, ''), content) 
+                 WHERE postID = :postid AND commentID = :commentid",
+                params! {
+                    "content" => new_content,
+                    "postid" => post_id,
+                    "commentid" => com_id,
+                },
+            );
+        
+            match query_result {
+                Ok(_) => println!("댓글이 수정되었습니다."),
+                Err(e) => println!("댓글 수정 중 오류가 발생했습니다: {}", e),
+            }
+        }                       
     }
     Ok(())
 }
@@ -1926,7 +2001,25 @@ fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }
         TableList::Comment => {
+            print!("삭제할 게시글 ID를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let post_id = get_input();
+
+            print!("삭제할 댓글 ID를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let comment_id = get_input();
+
+            let result = conn.exec_drop(
+                "DELETE FROM Comment WHERE commentID = :commentid and postID=postid",
+                params! { 
+                    "commentid" => comment_id,
+                    "postid"=>post_id},
+            );
             
+            match result {
+                Ok(_) => println!("선택한 댓글이 성공적으로 삭제되었습니다."),
+                Err(e) => println!("댓글 삭제 중 오류 발생: {}", e),
+            }
         }
     }
     Ok(())
