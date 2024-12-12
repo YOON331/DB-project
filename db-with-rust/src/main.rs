@@ -197,7 +197,9 @@ fn print_proj_menu() {
     println!("  4. 프로젝트 정보 변경 ");
     println!("  5. 프로젝트 삭제");
     println!("  6. 프로젝트 참여자 목록 조회");
-    println!("  7. 프로젝트 참여자 정보 수정");
+    println!("  7. 프로젝트 참여자 신규 등록");
+    println!("  8. 프로젝트 참여자 정보 수정");
+    println!("  9. 프로젝트 참여자 정보 삭제");
     println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
@@ -601,9 +603,21 @@ fn proj_management(conn: &mut PooledConn) {
                 }
             }
             "7" => {
+                match insert_data_table(conn, TableList::ProjectParticipation) {
+                    Ok(_) => {},
+                    Err(_) => println!("프로젝트를 등록하는 과정에서 에러가 발생했습니다.")
+                }
+            }
+            "8" => {
                 match update_data_table(conn, TableList::ProjectParticipation) {
                     Ok(_) => {},
                     Err(e) => println!("수정 중 에러 발생: {}", e),
+                }
+            }
+            "9" => {
+                match delete_data_table(conn, TableList::ProjectParticipation) {
+                    Ok(_) => {},
+                    Err(e) => println!("삭제 중 에러 발생: {}", e),
                 }
             }
             "99" => {
@@ -816,8 +830,52 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
             }
         }
         TableList::ProjectParticipation => {
-
+            print!("참여 동아리원 ID 입력: ");
+            let _ = io::stdout().flush();
+            let stdid = get_input();
+        
+            print!("프로젝트 ID 입력: ");
+            let _ = io::stdout().flush();
+            let projid = get_input();
+        
+            print!("참여일 (예: 2024-01-01): ");
+            let _ = io::stdout().flush();
+            let pdate = get_input();
+        
+            let project_exists: Option<i32> = conn.exec_first(
+                "SELECT projectID FROM Project WHERE projectID = :projid",
+                params! { "projid" => &projid },
+            )?;
+        
+            if project_exists.is_none() {
+                println!("프로젝트가 존재하지 않습니다.");
+                return Ok(());
+            }
+        
+            let participation_date: NaiveDate = match NaiveDate::parse_from_str(&pdate, "%Y-%m-%d") {
+                Ok(date) => date,
+                Err(_) => {
+                    println!("유효하지 않은 참여일 형식입니다. YYYY-MM-DD 형식이어야 합니다.");
+                    return Ok(());
+                }
+            };
+        
+            let result = conn.exec_drop(
+                "INSERT INTO ProjectParticipation (projectID, studentID, participationDate)
+                 VALUES (:projectid, :studentid, :participationdate)",
+                params! {
+                    "projectid" => projid,
+                    "studentid" => stdid,
+                    "participationdate" => participation_date,
+                },
+            );
+        
+            match result {
+                Ok(()) => println!("프로젝트 참여 등록이 완료되었습니다."),
+                Err(e) => println!("DB 삽입 오류: {}", e),
+            }
         }
+        
     }
     Ok(())
 }
@@ -1271,8 +1329,61 @@ fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }
         TableList::ProjectParticipation => {
-            
-        }
+            print!("삭제할 프로젝트의 번호를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let project_id = get_input();
+        
+            let project_exists: Option<i32> = conn.exec_first(
+                "SELECT projectID FROM Project WHERE projectID = :projectid",
+                params! { "projectid" => &project_id },
+            )?;
+        
+            if project_exists.is_none() {
+                println!("존재하지 않는 프로젝트입니다.");
+                return Ok(());
+            }
+        
+            print!("삭제할 프로젝트 참여자의 학번을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let std_id = get_input();
+        
+            let student_exists: Option<String> = conn.exec_first(
+                "SELECT studentID FROM Member WHERE studentID = :stdid",
+                params! { "stdid" => &std_id },
+            )?;
+        
+            if student_exists.is_none() {
+                println!("존재하지 않는 학생입니다.");
+                return Ok(());
+            }
+        
+            // 해당 프로젝트의 참여자로 등록 여부 확인
+            let participation_exists: Option<i32> = conn.exec_first(
+                "SELECT projectID FROM ProjectParticipation WHERE studentID = :stdid AND projectID = :projectid",
+                params! { 
+                    "stdid" => &std_id,
+                    "projectid" => &project_id
+                },
+            )?;
+        
+            if participation_exists.is_none() {
+                println!("해당 프로젝트에 등록되지 않은 학생입니다.");
+                return Ok(());
+            }
+        
+            let delete_result = conn.exec_drop(
+                "DELETE FROM ProjectParticipation WHERE studentID = :stdid AND projectID = :projectid",
+                params! { 
+                    "stdid" => &std_id,
+                    "projectid" => &project_id
+                },
+            );
+        
+            match delete_result {
+                Ok(_) => println!("프로젝트 참여자 정보가 성공적으로 삭제되었습니다."),
+                Err(e) => println!("프로젝트 참여자 정보 삭제 중 오류 발생: {}", e),
+            }
+        }            
     }
     Ok(())
 }
