@@ -13,16 +13,32 @@ struct Club {
     professorid: Option<String>,
 }
 
+struct Professor {
+    profid: String,
+    profname: String,
+    phone: String,
+}
+
 enum TableList {
     Professor,
     Club,
-    Member,
-    Project,
-    ProjectParticipation,
-    Post,
-    Comment,
-    Budget,
+    // Member,
+    // Project,
+    // ProjectParticipation,
+    // Post,
+    // Comment,
+    // Budget,
 }
+
+impl TableList {
+    fn table_name(&self) -> &'static str {
+        match self {
+            TableList::Professor => "Professor",
+            TableList::Club => "Club",
+        }
+    }
+}
+
 
 fn main() {
     dotenv().ok(); // .env 파일 불러오기
@@ -45,6 +61,9 @@ fn main() {
                             "1" => {
                                 club_management(&mut conn);
                             },
+                            "2" => {
+                                prof_manament(&mut conn);
+                            }
                             _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
                         }
                     }
@@ -66,13 +85,27 @@ fn print_menu() {
     println!("------------------------------------------------------------");
     println!("                 소프트웨어학부 동아리 관리 시스템                  ");
     println!("------------------------------------------------------------");
-    println!("  1. 동아리 관리            2.                        ");
-    println!("  3                      4.                        ");
-    println!("  5.                             6.                        ");
+    println!("  1. 동아리 관리            2. 지도교수 관리                      ");
+    println!("  3. 동아리원 관리          4. 프로젝트 관리                      ");
+    println!("  5. 게시글 관리            6. 예산 관리                        ");
     println!("  7.                             8.                        ");
     println!("  9.                            10.                        ");
-    println!(" 11.                            12.                        ");
     println!("                                99. 시스템 종료               ");
+    println!("------------------------------------------------------------");
+    print!("이동을 원하는 메뉴를 선택해주세요: ");
+    let _ = io::stdout().flush();
+}
+
+fn print_prof_menu() {
+    println!("                                                            ");
+    println!("                                                            ");
+    println!("------------------------------------------------------------");
+    println!("          소프트웨어학부 동아리 관리 시스템 - 교수 관리               ");
+    println!("------------------------------------------------------------");
+    println!("  1. 교수 전체 목록 조회               2. 교수 신규 등록           ");
+    println!("  3. 교수 검색                       4. 교수 정보 변경           ");
+    println!("  5. 교수 정보 삭제                                            ");
+    println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
     let _ = io::stdout().flush();
@@ -146,31 +179,49 @@ fn login_db() -> std::result::Result<mysql::Pool, Box<dyn std::error::Error>> {
     }
 }
 
-fn retriever_club_table(conn:&mut  PooledConn) -> std::result::Result<(), Box<dyn std::error::Error>>{
-    println!("\n동아리 전체 목록을 출력합니다.");
-    let result = conn.query_map(
-        "SELECT * FROM Club",
-        |(clubid, clubname, location, homepage, leaderid, professorid)| Club {
-            clubid,
-            clubname,
-            location,
-            homepage,
-            leaderid,
-            professorid,
-        },
-    )?;
-    for r in result {
-        println!(
-            "{} {} {} {} {} {}",
-            r.clubid,
-            r.clubname,
-            r.location.unwrap_or("NULL".to_string()),
-            r.homepage.unwrap_or("NULL".to_string()),
-            r.leaderid.unwrap_or("NULL".to_string()),
-            r.professorid.unwrap_or("NULL".to_string()),
-        );
-    }
+fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result::Result<(), Box<dyn std::error::Error>>{
+    println!("\n{}의 전체 목록을 출력합니다.", table.table_name());
+    match table {
+        TableList::Club => {
+            let result: Vec<Club> = conn.query_map(
+                format!("SELECT * FROM {}", table.table_name()),
+                |(clubid, clubname, location, homepage, leaderid, professorid)| Club {
+                    clubid,
+                    clubname,
+                    location,
+                    homepage,
+                    leaderid,
+                    professorid,
+                },
+            )?;
 
+            for r in result {
+                println!(
+                    "{} {} {} {} {} {}",
+                    r.clubid,
+                    r.clubname,
+                    r.location.unwrap_or("NULL".to_string()),
+                    r.homepage.unwrap_or("NULL".to_string()),
+                    r.leaderid.unwrap_or("NULL".to_string()),
+                    r.professorid.unwrap_or("NULL".to_string()),
+                );
+            }
+        }
+        TableList::Professor => {
+            let result: Vec<Professor> = conn.query_map(
+                format!("SELECT * FROM {}", table.table_name()),
+                |(profid, profname, phone)| Professor {
+                    profid,
+                    profname,
+                    phone,
+                },
+            )?;
+
+            for r in result {
+                println!("{} {} {}", r.profid, r.profname, r.phone);
+            }
+        }
+    }
     Ok(())
 }
 
@@ -184,6 +235,46 @@ fn get_input() -> String {
     input.to_string()
 }
 
+fn prof_manament(conn: &mut PooledConn) {
+    loop {
+        print_prof_menu();
+        let input = get_input();
+
+        match input.as_str() {
+            "1" => {
+                match retriever_club_table(conn, TableList::Professor) {
+                    Ok(_) => {},
+                    Err(_) => println!("교수 전체 목록을 조회하는 과정에서 에러가 발생했습니다.")
+                }
+            },
+            "2" => {
+                
+            },
+            "3" => {
+                println!("검색할 교수의 이름을 정확하게 입력해주세요: ");
+                let _ = io::stdout().flush();
+
+                let prof_name = get_input();
+                
+            },
+            "4" => {
+                println!("수정할 교수의 이름을 정확하게 입력해주세요: ");
+               
+
+            },
+            "5" => {
+                println!("삭제할 교수의 이름을 정확하게 입력해주세요: ");
+
+            }
+            "99" => {
+                break;
+            },
+            _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
+        }
+        
+    }
+} 
+
 fn club_management(conn:&mut  PooledConn) {
     loop {
         print_club_menu();
@@ -191,11 +282,56 @@ fn club_management(conn:&mut  PooledConn) {
 
         match input.as_str() {
             "1" => {
-                match retriever_club_table(conn) {
+                match retriever_club_table(conn, TableList::Club) {
                     Ok(_) => {},
                     Err(_) => println!("동아리 전체 목록을 조회하는 과정에서 에러가 발생했습니다.")
                 }
             },
+            "2" => {
+                
+            },
+            "3" => {
+                println!("검색할 동아리의 이름을 정확하게 입력해주세요: ");
+                let _ = io::stdout().flush();
+
+                let club_name = get_input();
+                
+            },
+            "4" => {
+                println!("수정할 동아리의 이름을 정확하게 입력해주세요: ");
+                let _ = io::stdout().flush();
+                println!("동아리명: ");
+                let club_name = get_input();
+
+                println!("동아리위치: ");
+                let club_loca = get_input();
+
+                println!("동아리 홈페이지: ");
+                let club_hp = get_input();
+
+                println!("동아리 리더: ");
+                let club_leader = get_input();
+
+                println!("동아리 지도교수: ");
+                let club_prof = get_input();
+                
+                let result = conn.exec_drop(
+                    "update?? into Club(clubName, loacation, homepage, leaderID, professorID) values ( :clubName, :loacation, :homepage, :club_leader, :club_leader)",
+                    params!{"clubName"=> club_name, "loacation"=> club_loca, "homepage"=> club_hp, "club_leader"=> club_leader, "professorID" =>club_prof}
+                );
+                match result {
+                    Ok(()) => {println!("신규 동아리 등록이 완료되었습니다.")},
+                    Err(_)=>println!("cbnu db insert error"),
+                }
+
+            },
+            "5" => {
+                println!("삭제할 동아리의 이름을 정확하게 입력해주세요: ");
+                let _ = io::stdout().flush();
+
+                let club_name = get_input();
+
+            }
             "99" => {
                 break;
             },
