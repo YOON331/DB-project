@@ -330,14 +330,16 @@ fn prof_manament(conn: &mut PooledConn) {
                 }
             },
             "3" => {
-                println!("검색할 교수의 이름을 정확하게 입력해주세요: ");
-                let prof_name = get_input();
-                
+                match search_data_table(conn, TableList::Professor) {
+                    Ok(_) => {},
+                    Err(e) => println!("검색 중 에러 발생: {}", e),
+                }  
             },
             "4" => {
-                println!("수정할 교수의 이름을 정확하게 입력해주세요");
-                
-
+                match update_data_table(conn, TableList::Professor) {
+                    Ok(_) => {},
+                    Err(e) => println!("수정 중 에러 발생: {}", e),
+                }
             },
             "5" => {
                 println!("삭제할 교수의 이름을 정확하게 입력해주세요: ");
@@ -372,16 +374,16 @@ fn mem_management(conn: &mut PooledConn) {
                 }
             },
             "3" => {
-                println!("검색할 동아리원의 이름을 정확하게 입력해주세요: ");
-                let _ = io::stdout().flush();
-
-                let mem_name = get_input();
-                
+                match search_data_table(conn, TableList::Member) {
+                    Ok(_) => {},
+                    Err(e) => println!("검색 중 에러 발생: {}", e),
+                }  
             },
             "4" => {
-                println!("수정할 동아리원의 이름을 정확하게 입력해주세요: ");
-               
-
+                match update_data_table(conn, TableList::Member) {
+                    Ok(_) => {},
+                    Err(e) => println!("수정 중 에러 발생: {}", e),
+                }
             },
             "5" => {
                 println!("삭제할 동아리원의 이름을 정확하게 입력해주세요: ");
@@ -416,15 +418,16 @@ fn club_management(conn:&mut  PooledConn) {
                 }
             },
             "3" => {
-                println!("검색할 동아리의 이름을 정확하게 입력해주세요: ");
-                let _ = io::stdout().flush();
-
-                let club_name = get_input();
-                
+                match search_data_table(conn, TableList::Club) {
+                    Ok(_) => {},
+                    Err(e) => println!("검색 중 에러 발생: {}", e),
+                }  
             },
             "4" => {
-                println!("수정할 동아리의 이름을 정확하게 입력해주세요: ");
-                
+                match update_data_table(conn, TableList::Club) {
+                    Ok(_) => {},
+                    Err(e) => println!("수정 중 에러 발생: {}", e),
+                }
             },
             "5" => {
                 println!("삭제할 동아리의 이름을 정확하게 입력해주세요: ");
@@ -593,6 +596,258 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
 fn process_null_input(input: String) -> Option<String> {
     if input.to_lowercase() == "null" || input.is_empty() {
         None
+    } else {
+        Some(input)
+    }
+}
+
+
+fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    match table {
+        TableList::Club => {
+            print!("수정할 동아리의 이름을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let club_name = get_input();
+
+            let existing: Option<(i32, String, Option<String>, Option<String>, Option<String>, Option<String>)> = conn.exec_first(
+                "SELECT clubID, clubName, location, homepage, leaderID, professorID FROM Club WHERE clubName = :clubname",
+                params! { "clubname" => &club_name },
+            )?;
+
+            if let Some((clubid, clubname, location, homepage, leaderid, professorid)) = existing {
+                let club = Club {
+                    clubid,
+                    clubname,
+                    location,
+                    homepage,
+                    leaderid,
+                    professorid,
+                };
+
+                print!("새로운 동아리 위치 (기존: {}): ", club.location.clone().unwrap_or("NULL".to_string()));
+                let _ = io::stdout().flush();
+                let new_location = process_input_or_default(get_input(), club.location);
+
+                print!("새로운 동아리 홈페이지 (기존: {}): ", club.homepage.clone().unwrap_or("NULL".to_string()));
+                let _ = io::stdout().flush();
+                let new_homepage = process_input_or_default(get_input(), club.homepage);
+
+                print!("새로운 동아리 리더 학번 (기존: {}): ", club.leaderid.clone().unwrap_or("NULL".to_string()));
+                let _ = io::stdout().flush();
+                let new_leader = process_input_or_default(get_input(), club.leaderid);
+
+                print!("새로운 동아리 지도교수 학번 (기존: {}): ", club.professorid.clone().unwrap_or("NULL".to_string()));
+                let _ = io::stdout().flush();
+                let new_prof = process_input_or_default(get_input(), club.professorid);
+
+                // 데이터 업데이트
+                conn.exec_drop(
+                    "UPDATE Club 
+                     SET location = :location, homepage = :homepage, leaderID = :leader, professorID = :professor
+                     WHERE clubName = :clubname",
+                    params! {
+                        "location" => new_location,
+                        "homepage" => new_homepage,
+                        "leader" => new_leader,
+                        "professor" => new_prof,
+                        "clubname" => &club_name,
+                    },
+                )?;
+                println!("동아리 정보가 성공적으로 수정되었습니다.");
+            } else {
+                println!("존재하지 않는 동아리입니다.");
+            }
+        },
+        TableList::Professor => {
+            print!("수정할 교수의 이름을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let prof_name = get_input();
+
+            // 기존 데이터 가져오기
+            let existing: Option<(String, String, String)> = conn.exec_first(
+                "SELECT professorID, name, phone FROM Professor WHERE name = :profname",
+                params! { "profname" => &prof_name },
+            )?;
+
+            if let Some((prof_id, prof_name, phone)) = existing {
+
+                print!("새로운 전화번호 (기존: {}): ", phone);
+                let _ = io::stdout().flush();
+                let new_phone = process_input_or_default(get_input(), Some(phone));
+
+                conn.exec_drop(
+                    "UPDATE Professor SET phone = :phone WHERE name = :profname",
+                    params! {
+                        "phone" => new_phone,
+                        "profname" => &prof_name,
+                    },
+                )?;
+                println!("교수 정보가 수정되었습니다.");
+            } else {
+                println!("존재하지 않는 교수입니다.");
+            }
+        },  
+        TableList::Member => {
+            print!("수정할 동아리원의 이름을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let mem_name = get_input();
+        
+            // 기존 데이터 가져오기
+            let existing: Option<(String, String, Option<String>, Option<String>, Option<String>)> = conn.exec_first(
+                "SELECT studentID, name, phone, department, isleader FROM Member WHERE name = :memname",
+                params! { "memname" => &mem_name },
+            )?;
+        
+            if let Some((student_id, name, phone, department, isleader)) = existing {        
+                print!("새로운 전화번호 (기존: {}): ", phone.clone().unwrap_or("NULL".to_string()));
+                let _ = io::stdout().flush();
+                let new_phone = process_input_or_default(get_input(), phone);
+        
+                print!("새로운 학과 (기존: {}): ", department.clone().unwrap_or("NULL".to_string()));
+                let _ = io::stdout().flush();
+                let new_dept = process_input_or_default(get_input(), department);
+        
+                print!("새로운 임원여부 (기존: {}): ", isleader.clone().unwrap_or("NULL".to_string()));
+                let _ = io::stdout().flush();
+                let new_leader = process_input_or_default(get_input(), isleader);
+        
+                conn.exec_drop(
+                    "UPDATE Member SET phone = :phone, department = :department, isleader = :isleader WHERE name = :memname",
+                    params! {
+                        "phone" => new_phone,
+                        "department" => new_dept,
+                        "isleader" => new_leader,
+                        "memname" => &mem_name,
+                    },
+                )?;
+                println!("동아리원 정보가 수정되었습니다.");
+            } else {
+                println!("존재하지 않는 동아리원입니다.");
+            }
+        }        
+    }
+    Ok(())
+}
+
+fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Result<(), Box<dyn std::error::Error>>{
+    match table {
+        TableList::Club => {
+            print!("검색할 동아리 이름을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let club_name = get_input();
+
+            let result: Vec<Club> = conn.exec_map(
+                "SELECT * FROM Club WHERE clubName LIKE :clubname",
+                params! { "clubname" => format!("%{}%", club_name) },
+                |(clubid, clubname, location, homepage, leaderid, professorid)| Club {
+                    clubid,
+                    clubname,
+                    location,
+                    homepage,
+                    leaderid,
+                    professorid,
+                },
+            )?;
+
+            if result.is_empty() {
+                println!("검색 결과가 없습니다.");
+            } else {
+                for club in result {
+                    println!(
+                        "{} {} {} {} {} {}",
+                        club.clubid,
+                        club.clubname,
+                        club.location.unwrap_or("NULL".to_string()),
+                        club.homepage.unwrap_or("NULL".to_string()),
+                        club.leaderid.unwrap_or("NULL".to_string()),
+                        club.professorid.unwrap_or("NULL".to_string()),
+                    );
+                }
+            }
+        },
+        TableList::Professor => {
+            print!("검색할 교수 이름을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let prof_name = get_input();
+
+            let result: Vec<Professor> = conn.exec_map(
+                "SELECT * FROM Professor WHERE name LIKE :profname",
+                params! { "profname" => format!("%{}%", prof_name) },
+                |(profid, profname, phone)| Professor {
+                    profid,
+                    profname,
+                    phone,
+                },
+            )?;
+
+            if result.is_empty() {
+                println!("검색 결과가 없습니다.");
+            } else {
+                for prof in result {
+                    println!("{} {} {}", prof.profid, prof.profname, prof.phone);
+                }
+            }
+        },
+        TableList::Member => {
+            print!("검색할 동아리원 이름을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let mem_name = get_input();
+
+            let result: Vec<Member> = conn.exec_map(
+                "SELECT * FROM Member WHERE name LIKE :memname",
+                params! { "memname" => format!("%{}%", mem_name) },
+                |(studentid, name, department, gender, birth, phone, joindate, isleader, clubid): (
+                    String,           // studentID
+                    String,           // name
+                    Option<String>,   // department
+                    Option<String>,   // gender
+                    NaiveDate,        // birth (Date 타입)
+                    Option<String>,   // phone
+                    NaiveDate,        // joindate (Date 타입)
+                    String,           // isleader ("Y"/"N")
+                    i32,              // clubID
+                )| {
+                    Member {
+                        studentid,
+                        name,
+                        dept: department,
+                        gender,
+                        birth: birth.to_string(), // NaiveDate를 String으로 변환
+                        phone,
+                        joindate: joindate.to_string(), // NaiveDate를 String으로 변환
+                        isleader: isleader == "Y", // CHAR('Y')를 bool로 변환
+                        clubid,
+                    }
+                },
+            )?;         
+
+            if result.is_empty() {
+                println!("검색 결과가 없습니다.");
+            } else {
+                for mem in result {
+                    println!(
+                        "{} {} {} {} {} {} {} {} {}",
+                        mem.studentid,
+                        mem.name,
+                        mem.dept.unwrap_or("NULL".to_string()),
+                        mem.gender.unwrap_or("NULL".to_string()),
+                        mem.birth,
+                        mem.phone.unwrap_or("NULL".to_string()),
+                        mem.joindate,
+                        mem.isleader,
+                        mem.clubid,
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+
+fn process_input_or_default(input: String, default: Option<String>) -> Option<String> {
+    if input.trim().is_empty() {
+        default
     } else {
         Some(input)
     }
