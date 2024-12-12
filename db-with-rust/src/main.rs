@@ -32,11 +32,20 @@ struct Member {
     clubid: i32,
 }
 
+struct Project {
+    projectid: String,
+    name: String,
+    location: Option<String>,
+    startdate: Option<String>,
+    enddate: Option<String>,
+    clubid: i32,
+}
+
 enum TableList {
     Professor,
     Club,
     Member,
-    // Project,
+    Project,
     // ProjectParticipation,
     // Post,
     // Comment,
@@ -49,6 +58,7 @@ impl TableList {
             TableList::Professor => "Professor",
             TableList::Club => "Club",
             TableList::Member => "Member",
+            TableList::Project => "Project",
         }
     }
 }
@@ -81,6 +91,9 @@ fn main() {
                             "3" => {
                                 mem_management(&mut conn);
                             }
+                            "4" => {
+                                proj_management(&mut conn);
+                            }
                             _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
                         }
                     }
@@ -102,11 +115,12 @@ fn print_menu() {
     println!("------------------------------------------------------------");
     println!("                 소프트웨어학부 동아리 관리 시스템                  ");
     println!("------------------------------------------------------------");
-    println!("  1. 동아리 관리            2. 지도교수 관리                      ");
-    println!("  3. 동아리원 관리          4. 프로젝트 관리                      ");
-    println!("  5. 게시글 관리            6. 예산 관리                        ");
-    println!("  7.                             8.                        ");
-    println!("  9.                            10.                        ");
+    println!("  1. 동아리 관리");
+    println!("  2. 지도교수 관리");
+    println!("  3. 동아리원 관리");
+    println!("  4. 프로젝트 관리");
+    println!("  5. 게시글 관리");
+    println!("  6. 예산 관리");
     println!("                                99. 시스템 종료               ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
@@ -119,8 +133,10 @@ fn print_mem_menu() {
     println!("------------------------------------------------------------");
     println!("        소프트웨어학부 동아리 관리 시스템 - 동아리원 관리               ");
     println!("------------------------------------------------------------");
-    println!("  1. 동아리원 전체 목록 조회           2. 동아리원 신규 등록         ");
-    println!("  3. 동아리원 검색                    4. 동아리원 정보 변경         ");
+    println!("  1. 동아리원 전체 목록 조회");
+    println!("  2. 동아리원 신규 등록");
+    println!("  3. 동아리원 검색");
+    println!("  4. 동아리원 정보 변경");
     println!("  5. 동아리원 정보 삭제                                         ");
     println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
@@ -134,8 +150,10 @@ fn print_prof_menu() {
     println!("------------------------------------------------------------");
     println!("          소프트웨어학부 동아리 관리 시스템 - 교수 관리               ");
     println!("------------------------------------------------------------");
-    println!("  1. 교수 전체 목록 조회               2. 교수 신규 등록           ");
-    println!("  3. 교수 검색                       4. 교수 정보 변경           ");
+    println!("  1. 교수 전체 목록 조회");
+    println!("  2. 교수 신규 등록");
+    println!("  3. 교수 검색");
+    println!("  4. 교수 정보 변경");
     println!("  5. 교수 정보 삭제                                            ");
     println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
@@ -143,16 +161,34 @@ fn print_prof_menu() {
     let _ = io::stdout().flush();
 }
 
-
 fn print_club_menu() {
     println!("                                                            ");
     println!("                                                            ");
     println!("------------------------------------------------------------");
     println!("           소프트웨어학부 동아리 관리 시스템 - 동아리 관리             ");
     println!("------------------------------------------------------------");
-    println!("  1. 동아리 전체 목록 조회            2. 동아리 신규 등록           ");
-    println!("  3. 동아리 검색                    4. 동아리 정보 변경           ");
-    println!("  5. 동아리 삭제                    6.                        ");
+    println!("  1. 동아리 전체 목록 조회");
+    println!("  2. 동아리 신규 등록  ");
+    println!("  3. 동아리 검색 ");
+    println!("  4. 동아리 정보 변경 ");
+    println!("  5. 동아리 삭제");
+    println!("                                99. 이전 메뉴로 이동            ");
+    println!("------------------------------------------------------------");
+    print!("이동을 원하는 메뉴를 선택해주세요: ");
+    let _ = io::stdout().flush();
+}
+
+fn print_proj_menu() {
+    println!("                                                            ");
+    println!("                                                            ");
+    println!("------------------------------------------------------------");
+    println!("           소프트웨어학부 동아리 관리 시스템 - 프로젝트 관리             ");
+    println!("------------------------------------------------------------");
+    println!("  1. 프로젝트 전체 목록 조회");
+    println!("  2. 프로젝트 신규 등록  ");
+    println!("  3. 프로젝트 검색 ");
+    println!("  4. 프로젝트 정보 변경 ");
+    println!("  5. 프로젝트 삭제");
     println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
@@ -296,6 +332,39 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
                 );
             }
         }
+        TableList::Project => {
+            let result: Vec<Project> = conn.query_map(
+                format!("SELECT * FROM {}", table.table_name()),
+                |(
+                    projectid,
+                    name,
+                    location,
+                    startdate,
+                    enddate,
+                    clubid,                
+                ): (String, String, Option<String>, Option<String>, Option<String>, i32)| {
+                    Project{
+                        projectid,
+                        name,
+                        location,
+                        startdate,
+                        enddate,
+                        clubid,  
+                    }
+                },
+            )?;
+
+            for r in result {
+                println!("{} {} {} {} {} {}", 
+                    r.projectid,
+                    r.name,
+                    r.location.unwrap_or("NULL".to_string()),
+                    r.startdate.unwrap_or("NULL".to_string()),
+                    r.enddate.unwrap_or("NULL".to_string()),
+                    r.clubid, 
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -342,8 +411,10 @@ fn prof_manament(conn: &mut PooledConn) {
                 }
             },
             "5" => {
-                println!("삭제할 교수의 이름을 정확하게 입력해주세요: ");
-
+                match delete_data_table(conn, TableList::Professor) {
+                    Ok(_) => {},
+                    Err(e) => println!("삭제 중 에러 발생: {}", e),
+                }
             }
             "99" => {
                 break;
@@ -386,8 +457,10 @@ fn mem_management(conn: &mut PooledConn) {
                 }
             },
             "5" => {
-                println!("삭제할 동아리원의 이름을 정확하게 입력해주세요: ");
-
+                match delete_data_table(conn, TableList::Member) {
+                    Ok(_) => {},
+                    Err(e) => println!("삭제 중 에러 발생: {}", e),
+                }
             }
             "99" => {
                 break;
@@ -430,11 +503,57 @@ fn club_management(conn:&mut  PooledConn) {
                 }
             },
             "5" => {
-                println!("삭제할 동아리의 이름을 정확하게 입력해주세요: ");
-                let _ = io::stdout().flush();
+                match delete_data_table(conn, TableList::Club) {
+                    Ok(_) => {},
+                    Err(e) => println!("삭제 중 에러 발생: {}", e),
+                }
+            }
+            "99" => {
+                break;
+            },
+            _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
+        }
+        
+    }
+}
 
-                let club_name = get_input();
 
+fn proj_management(conn: &mut PooledConn) {
+    loop {
+        print_proj_menu();
+        let input = get_input();
+
+        match input.as_str() {
+            "1" => {
+                match retriever_club_table(conn, TableList::Project) {
+                    Ok(_) => {},
+                    Err(_) => println!("프로젝트 전체 목록을 조회하는 과정에서 에러가 발생했습니다.")
+                }
+            },
+            "2" => {
+                println!("신규 등록할 프로젝트의 정보를 입력해주세요");
+                match insert_data_table(conn, TableList::Project) {
+                    Ok(_) => {},
+                    Err(_) => println!("프로젝트를 등록하는 과정에서 에러가 발생했습니다.")
+                }
+            },
+            "3" => {
+                match search_data_table(conn, TableList::Project) {
+                    Ok(_) => {},
+                    Err(e) => println!("검색 중 에러 발생: {}", e),
+                }  
+            },
+            "4" => {
+                match update_data_table(conn, TableList::Project) {
+                    Ok(_) => {},
+                    Err(e) => println!("수정 중 에러 발생: {}", e),
+                }
+            },
+            "5" => {
+                match delete_data_table(conn, TableList::Project) {
+                    Ok(_) => {},
+                    Err(e) => println!("삭제 중 에러 발생: {}", e),
+                }
             }
             "99" => {
                 break;
@@ -588,7 +707,63 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
                 Err(e) => println!("cbnu db insert error: {}", e),
             }
         }        
-   
+        TableList::Project => {
+            print!("담당 동아리(번호 또는 이름 입력): ");
+            let _ = io::stdout().flush();
+            let joinclub = get_input();
+        
+            // 가입 동아리 번호 확인
+            let club_id: Option<i32> = conn.exec_first(
+                "SELECT clubID FROM Club WHERE clubID = :joinclub OR clubName = :joinclub",
+                params! { "joinclub" => &joinclub },
+            )?;
+        
+            if club_id.is_none() {
+                println!("동아리가 존재하지 않습니다.");
+                return Ok(());
+            }
+            
+            
+            print!("프로젝트명: ");
+            let _ = io::stdout().flush();
+            let name = get_input();
+        
+            print!("위치: ");
+            let _ = io::stdout().flush();
+            let location = get_input();
+        
+            print!("시작일(2024-01-01): ");
+            let _ = io::stdout().flush();
+            let startdate = get_input();
+        
+            print!("예상 종료일(2024-01-01): ");
+            let _ = io::stdout().flush();
+            let enddate = get_input();
+        
+            let startdate: NaiveDate = NaiveDate::parse_from_str(&startdate, "%Y-%m-%d")
+                .map_err(|_| "유효하지 않은 시작일 형식입니다")?;
+
+            let enddate = NaiveDate::parse_from_str(&enddate, "%Y-%m-%d")
+                .map_err(|_| "유효하지 않은 종료일 형식입니다")?;
+                
+            // INSERT INTO Member 실행
+            let result = conn.exec_drop(
+                "INSERT INTO Project ( name, location, startdate, enddate, clubID)
+                VALUES ( :name, :location, :startdate, :enddate, :clubid)",
+                params! {
+                    "name" => name,
+                    "location" => location,
+                    "startdate" => startdate,
+                    "enddate" => enddate,
+                    "clubid" => club_id.unwrap(),
+                },
+                
+            );
+            match result {
+                Ok(()) => println!("신규 프로젝트 등록이 완료되었습니다."),
+                Err(e) => println!("cbnu db insert error: {}", e),
+            }
+        }
     }
     Ok(())
 }
@@ -724,7 +899,10 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             } else {
                 println!("존재하지 않는 동아리원입니다.");
             }
-        }        
+        }   
+        TableList::Project => {
+
+        }     
     }
     Ok(())
 }
@@ -840,10 +1018,78 @@ fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
                 }
             }
         }
+        TableList::Project => {
+
+        }
     }
     Ok(())
 }
 
+fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    match table {
+        TableList::Club => {
+            print!("삭제할 동아리명을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let club_name = get_input();
+
+            let delete_result = conn.exec_drop(
+                "DELETE FROM Club WHERE clubName = :clubname",
+                params! { "clubname" => &club_name },
+            );
+
+            match delete_result {
+                Ok(_) => println!("동아리가 성공적으로 삭제되었습니다."),
+                Err(e) => println!("동아리 삭제 중 오류 발생: {}", e),
+            }
+        }
+        TableList::Professor => {
+            print!("삭제할 교수의 사번을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let prof_id = get_input();
+
+            let delete_result = conn.exec_drop(
+                "DELETE FROM Professor WHERE professorID = :profid",
+                params! { "profid" => &prof_id },
+            );
+
+            match delete_result {
+                Ok(_) => println!("교수가 성공적으로 삭제되었습니다."),
+                Err(e) => println!("교수 삭제 중 오류 발생: {}", e),
+            }
+        }
+        TableList::Member => {
+            print!("삭제할 동아리원의 학번을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let student_id = get_input();
+
+            let delete_result = conn.exec_drop(
+                "DELETE FROM Member WHERE studentID = :studentid",
+                params! { "studentid" => &student_id },
+            );
+
+            match delete_result {
+                Ok(_) => println!("동아리원이 성공적으로 삭제되었습니다."),
+                Err(e) => println!("동아리원 삭제 중 오류 발생: {}", e),
+            }
+        }
+        TableList::Project => {
+            print!("삭제할 프로젝트의 번호를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let project_id = get_input();
+
+            let delete_result = conn.exec_drop(
+                "DELETE FROM Project WHERE projectID = :projectid",
+                params! { "projectid" => &project_id },
+            );
+
+            match delete_result {
+                Ok(_) => println!("프로젝트가 성공적으로 삭제되었습니다."),
+                Err(e) => println!("프로젝트 삭제 중 오류 발생: {}", e),
+            }
+        }
+    }
+    Ok(())
+}
 
 fn process_input_or_default(input: String, default: Option<String>) -> Option<String> {
     if input.trim().is_empty() {
