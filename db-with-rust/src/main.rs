@@ -55,6 +55,21 @@ struct Budget {
     price: i32,
     studentid: String,
 }
+struct Post {
+    postid: i32,
+    content: String,
+    title: String,
+    date: String,
+    studentid: String,
+}
+
+struct Comment {
+    commentid: i32,
+    content: String,
+    date: String,
+    postid: i32,
+    studentid: String,
+}
 
 enum TableList {
     Professor,
@@ -62,8 +77,8 @@ enum TableList {
     Member,
     Project,
     ProjectParticipation,
-    // Post,
-    // Comment,
+    Post,
+    Comment,
     Budget,
 }
 
@@ -76,6 +91,8 @@ impl TableList {
             TableList::Project => "Project",
             TableList::ProjectParticipation => "ProjectParticipation",
             TableList::Budget => "Budget",
+            TableList::Post => "Post",
+            TableList::Comment => "Comment",
         }
     }
 }
@@ -111,6 +128,9 @@ fn main() {
                             "4" => {
                                 proj_management(&mut conn);
                             }
+                            "5" => {
+                                post_management(&mut conn);
+                            }
                             "6" => {
                                 budget_management(&mut conn);
                             }
@@ -142,6 +162,27 @@ fn print_menu() {
     println!("  5. 게시글 관리");
     println!("  6. 예산 관리");
     println!("                                99. 시스템 종료               ");
+    println!("------------------------------------------------------------");
+    print!("이동을 원하는 메뉴를 선택해주세요: ");
+    let _ = io::stdout().flush();
+}
+
+fn print_post_menu() {
+    println!("                                                            ");
+    println!("                                                            ");
+    println!("------------------------------------------------------------");
+    println!("         소프트웨어학부 동아리 관리 시스템 - 게시글 관리               ");
+    println!("------------------------------------------------------------");
+    println!("  1. 전체 게시글 목록 조회");
+    println!("  2. 게시글 등록");
+    println!("  3. 게시글 검색");
+    println!("  4. 게시글 수정");
+    println!("  5. 게시글 삭제 ");
+    println!("  6. 댓글 조회 ");
+    println!("  7. 댓글 등록 ");
+    println!("  8. 댓글 변경 ");
+    println!("  9. 댓글 삭제 ");
+    println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
     let _ = io::stdout().flush();
@@ -469,6 +510,39 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
                 );
             }
         }
+        TableList::Post => {
+            let result: Vec<Post> = conn.query_map(
+                format!("SELECT * FROM {}", table.table_name()),
+                |(
+                    postid,
+                    content,
+                    title,                    
+                    date,
+                    studentid,               
+                ): (i32, String, String, String, String)| {
+                    Post{
+                        postid,
+                        content,
+                        title,
+                        date,
+                        studentid,  
+                    }
+                },
+            )?;
+
+            for r in result {
+                println!("{} {} {} {} {}", 
+                    r.postid,
+                    r.content,
+                    r.title,
+                    r.date,
+                    r.studentid, 
+                );
+            }
+        }
+        TableList::Comment => {
+
+        }
     }
     Ok(())
 }
@@ -482,6 +556,75 @@ fn get_input() -> String {
 
     input.to_string()
 }
+
+fn post_management(conn: &mut PooledConn) {
+    loop {
+        print_post_menu();
+        let input = get_input();
+
+        match input.as_str() {
+            "1" => {
+                match retriever_club_table(conn, TableList::Post) {
+                    Ok(_) => {},
+                    Err(e) => println!("게시글 조회 중 오류 발생: {}", e),
+                }
+            },
+            "2" => {
+                match insert_data_table(conn, TableList::Post) {
+                    Ok(_) => {},
+                    Err(e) => println!("게시글 등록 중 오류 발생: {}", e),
+                }
+            },
+            "3" => {
+                match search_data_table(conn, TableList::Post) {
+                    Ok(_) => {},
+                    Err(e) => println!("게시글 검색 중 오류 발생: {}", e),
+                }
+            },
+            "4" => {
+                match update_data_table(conn, TableList::Post) {
+                    Ok(_) => {},
+                    Err(e) => println!("게시글 수정 중 오류 발생: {}", e),
+                }
+            },
+            "5" => {
+                match delete_data_table(conn, TableList::Post) {
+                    Ok(_) => {},
+                    Err(e) => println!("게시글 삭제 중 오류 발생: {}", e),
+                }
+            },
+            "6" => {
+                match retriever_club_table(conn, TableList::Comment) {
+                    Ok(_) => {},
+                    Err(e) => println!("댓글 조회 중 오류 발생: {}", e),
+                }
+            },
+            "7" => {
+                match insert_data_table(conn, TableList::Comment) {
+                    Ok(_) => {},
+                    Err(e) => println!("댓글 등록 중 오류 발생: {}", e),
+                }
+            },
+            "8" => {
+                match update_data_table(conn, TableList::Comment) {
+                    Ok(_) => {},
+                    Err(e) => println!("댓글 수정 중 오류 발생: {}", e),
+                }
+            },
+            "9" => {
+                match delete_data_table(conn, TableList::Comment) {
+                    Ok(_) => {},
+                    Err(e) => println!("댓글 삭제 중 오류 발생: {}", e),
+                }
+            },
+            "99" => {
+                break;
+            },
+            _ => println!("잘못 입력했습니다. 메뉴의 번호를 확인해주세요."),
+        }
+    }
+}
+
 
 fn budget_management(conn: &mut PooledConn) {
     loop {
@@ -1032,7 +1175,12 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
                 Err(_) => println!("cbnu db insert error"),
             }
         }
+        TableList::Post => {
 
+        }
+        TableList::Comment => {
+
+        }
     }
     Ok(())
 }
@@ -1333,7 +1481,13 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             } else {
                 println!("존재하지 않는 예산 번호입니다.");
             }
-        }                     
+        }     
+        TableList::Post => {
+
+        }
+        TableList::Comment => {
+            
+        }                
     }
     Ok(())
 }
@@ -1542,6 +1696,12 @@ fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
                 }
             }   
         }
+        TableList::Post => {
+
+        }
+        TableList::Comment => {
+            
+        }
     }
     Ok(())
 }
@@ -1679,6 +1839,12 @@ fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
                 Err(e) => println!("예산 내역 삭제 중 오류 발생: {}", e),
             }
         }      
+        TableList::Post => {
+
+        }
+        TableList::Comment => {
+            
+        }
     }
     Ok(())
 }
