@@ -1176,7 +1176,36 @@ fn insert_data_table(conn:&mut  PooledConn, table: TableList) -> std::result::Re
             }
         }
         TableList::Post => {
+            print!("게시글 제목: ");
+            let _ = io::stdout().flush();
+            let title = get_input();
 
+            print!("게시글 내용: ");
+            let _ = io::stdout().flush();
+            let content = get_input();
+
+            print!("작성자 ID: ");
+            let _ = io::stdout().flush();
+            let student_id = get_input();
+
+            let date = chrono::Local::now().date_naive();
+
+            let result = conn.exec_drop(
+                "INSERT INTO Post (title, content, date, studentID) VALUES (:title, :content, :date, :studentid)",
+                params! {
+                    "title" => title,
+                    "content" => content,
+                    "date" => date,
+                    "studentid" => student_id,
+                },
+            );
+
+            match result {
+                Ok(()) => {
+                    println!("게시글 등록이 완료되었습니다.");
+                }
+                Err(_) => println!("cbnu db insert error"),
+            }
         }
         TableList::Comment => {
 
@@ -1483,8 +1512,28 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }     
         TableList::Post => {
-
-        }
+            print!("수정할 게시글 ID를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let post_id = get_input();
+        
+            print!("새로운 제목 (기존 값 유지하려면 엔터): ");
+            let _ = io::stdout().flush();
+            let new_title = get_input();
+        
+            print!("새로운 내용 (기존 값 유지하려면 엔터): ");
+            let _ = io::stdout().flush();
+            let new_content = get_input();
+        
+            conn.exec_drop(
+                "UPDATE Post SET title = COALESCE(NULLIF(:title, ''), title), content = COALESCE(NULLIF(:content, ''), content) WHERE postID = :postid",
+                params! {
+                    "title" => new_title,
+                    "content" => new_content,
+                    "postid" => post_id,
+                },
+            )?;
+            println!("게시글이 수정되었습니다.");
+        }            
         TableList::Comment => {
             
         }                
@@ -1697,7 +1746,29 @@ fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }   
         }
         TableList::Post => {
+            print!("검색할 게시글 제목을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let title = get_input();
+        
+            let result: Vec<(i32, String, String, NaiveDate, String)> = conn.exec_map(
+                "SELECT postID, title, content, date, studentID FROM Post WHERE title LIKE :title",
+                params! { "title" => format!("%{}%", title) },
+                |(post_id, title, content, date, student_id)| (post_id, title, content, date, student_id),
+            )?;
 
+        
+            if result.is_empty() {
+                println!("검색 결과가 없습니다.");
+            } else {
+                println!("검색 결과:");
+                for (post_id, title, content, date, student_id) in result {
+                    println!(
+                        "게시글 ID: {}, 제목: {}, 내용: {}, 작성일: {}, 작성자 ID: {}",
+                        post_id, title, content, date, student_id
+                    );
+                }
+            }
+            
         }
         TableList::Comment => {
             
@@ -1840,7 +1911,19 @@ fn delete_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }      
         TableList::Post => {
+            print!("삭제할 게시글의 번호를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let id = get_input();
 
+            let delete_result = conn.exec_drop(
+                "DELETE FROM Post WHERE postID = :id",
+                params! { "id" => &id },
+            );
+
+            match delete_result {
+                Ok(_) => println!("선택한 게시글이 성공적으로 삭제되었습니다."),
+                Err(e) => println!("게시글 삭제 중 오류 발생: {}", e),
+            }
         }
         TableList::Comment => {
             
