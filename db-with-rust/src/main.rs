@@ -197,6 +197,7 @@ fn print_proj_menu() {
     println!("  4. 프로젝트 정보 변경 ");
     println!("  5. 프로젝트 삭제");
     println!("  6. 프로젝트 참여자 목록 조회");
+    println!("  7. 프로젝트 참여자 정보 수정");
     println!("                                99. 이전 메뉴로 이동            ");
     println!("------------------------------------------------------------");
     print!("이동을 원하는 메뉴를 선택해주세요: ");
@@ -374,10 +375,11 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
             }
         }
         TableList::ProjectParticipation => {
-            let result: Vec<(i32, String, String, String, String)> = conn.exec_map(
+            let result: Vec<(i32, String, NaiveDate, String, String, String)> = conn.exec_map(
                 "SELECT 
                     pp.projectID, 
                     pp.studentID, 
+                    pp.participationDate,
                     m.name AS studentName, 
                     c.clubName AS clubName, 
                     p.name AS projectName 
@@ -390,15 +392,15 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
                 JOIN 
                     Club c ON p.clubID = c.clubID",
                 (),
-                |(projectid, studentid, student_name, club_name, project_name)| {
-                    (projectid, studentid, student_name, club_name, project_name)
+                |(projectid, studentid, pdate, student_name, club_name, project_name)| {
+                    (projectid, studentid, pdate, student_name, club_name, project_name)
                 },
             )?;
         
-            for (projectid, studentid, student_name, club_name, project_name) in result {
+            for (projectid, studentid, pdate, student_name, club_name, project_name) in result {
                 println!(
-                    "프로젝트 ID: {}, 학생 ID: {}, 학생 이름: {}, 동아리 이름: {}, 프로젝트 이름: {}",
-                    projectid, studentid, student_name, club_name, project_name
+                    "프로젝트 ID: {}, 프로젝트 이름: {}, 학생 ID: {}, 학생 이름: {}, 동아리 이름: {}, 참여일: {}",
+                    projectid, project_name, studentid, student_name, club_name, pdate.to_string()
                 );
             }
         }
@@ -595,7 +597,13 @@ fn proj_management(conn: &mut PooledConn) {
             "6" => {
                 match retriever_club_table(conn, TableList::ProjectParticipation) {
                     Ok(_) => {},
-                    Err(e) => println!("삭제 중 에러 발생: {}", e),
+                    Err(e) => println!("조회 중 에러 발생: {}", e),
+                }
+            }
+            "7" => {
+                match update_data_table(conn, TableList::ProjectParticipation) {
+                    Ok(_) => {},
+                    Err(e) => println!("수정 중 에러 발생: {}", e),
                 }
             }
             "99" => {
@@ -995,8 +1003,46 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }       
         TableList::ProjectParticipation => {
-            
-        }     
+            print!("수정할 프로젝트 참여자의 학번을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let stdid = get_input();
+        
+            // 기존 데이터 가져오기
+            let existing: Option<(i32, String, Option<NaiveDate>)> = conn.exec_first(
+                "SELECT projectID, studentID, participationDate FROM ProjectParticipation WHERE studentID = :stdid",
+                params! { "stdid" => &stdid },
+            )?;
+        
+            if let Some((project_id, student_id, participation_date)) = existing {
+                print!(
+                    "새로운 참여일을 입력해주세요 (기존: {}): ",
+                    participation_date.map_or("NULL".to_string(), |date| date.to_string())
+                );
+                let _ = io::stdout().flush();
+                let new_date = get_input();
+        
+                let new_date = if new_date.trim().is_empty() {
+                    participation_date
+                } else {
+                    Some(NaiveDate::parse_from_str(&new_date, "%Y-%m-%d").unwrap_or_else(|_| {
+                        panic!("날짜 형식이 잘못되었습니다. YYYY-MM-DD 형식이어야 합니다.");
+                    }))
+                };
+        
+                // ProjectParticipation 테이블 업데이트
+                conn.exec_drop(
+                    "UPDATE ProjectParticipation SET participationDate = :participationdate WHERE studentID = :studentid",
+                    params! {
+                        "participationdate" => new_date,
+                        "studentid" => student_id,
+                    },
+                )?;
+        
+                println!("프로젝트 참여자의 정보가 성공적으로 수정되었습니다.");
+            } else {
+                println!("존재하지 않는 프로젝트 참여자입니다.");
+            }
+        }                 
     }
     Ok(())
 }
