@@ -33,7 +33,7 @@ struct Member {
 }
 
 struct Project {
-    projectid: String,
+    projectid: i32,
     name: String,
     location: Option<String>,
     startdate: Option<String>,
@@ -342,7 +342,7 @@ fn retriever_club_table(conn:&mut  PooledConn, table: TableList) -> std::result:
                     startdate,
                     enddate,
                     clubid,                
-                ): (String, String, Option<String>, Option<String>, Option<String>, i32)| {
+                ): (i32, String, Option<String>, Option<String>, Option<String>, i32)| {
                     Project{
                         projectid,
                         name,
@@ -834,14 +834,14 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         },
         TableList::Professor => {
-            print!("수정할 교수의 이름을 입력해주세요: ");
+            print!("수정할 교수의 사번을 입력해주세요: ");
             let _ = io::stdout().flush();
-            let prof_name = get_input();
+            let prof_id = get_input();
 
             // 기존 데이터 가져오기
             let existing: Option<(String, String, String)> = conn.exec_first(
-                "SELECT professorID, name, phone FROM Professor WHERE name = :profname",
-                params! { "profname" => &prof_name },
+                "SELECT professorID, name, phone FROM Professor WHERE professorID = :profid",
+                params! { "profid" => &prof_id },
             )?;
 
             if let Some((prof_id, prof_name, phone)) = existing {
@@ -851,10 +851,10 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
                 let new_phone = process_input_or_default(get_input(), Some(phone));
 
                 conn.exec_drop(
-                    "UPDATE Professor SET phone = :phone WHERE name = :profname",
+                    "UPDATE Professor SET phone = :phone WHERE professorID = :profid",
                     params! {
                         "phone" => new_phone,
-                        "profname" => &prof_name,
+                        "profid" => &prof_id,
                     },
                 )?;
                 println!("교수 정보가 수정되었습니다.");
@@ -901,8 +901,53 @@ fn update_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }   
         TableList::Project => {
-
-        }     
+            print!("수정할 프로젝트의 번호를 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let proj_id = get_input();
+        
+            // 기존 데이터 가져오기
+            let existing: Option<(i32, String, Option<String>, Option<NaiveDate>, Option<NaiveDate>, i32)> = conn.exec_first(
+                "SELECT projectID, name, location, startdate, enddate, clubID FROM Project WHERE projectID = :projid",
+                params! { "projid" => &proj_id },
+            )?;
+        
+            if let Some((proj_id, name, location, _, enddate, clubid)) = existing {
+        
+                print!("새로운 프로젝트 이름 (기존: {}): ", name);
+                let _ = io::stdout().flush();
+                let new_name = process_input_or_default(get_input(), Some(name));
+        
+                print!(
+                    "새로운 프로젝트 위치 (기존: {}): ",
+                    location.clone().unwrap_or("NULL".to_string())
+                );
+                let _ = io::stdout().flush();
+                let new_location = process_input_or_default(get_input(), location);
+        
+                print!(
+                    "새로운 프로젝트 예상 종료일 (기존: {}): ",
+                    enddate.map_or("NULL".to_string(), |d| d.to_string())
+                );
+                let _ = io::stdout().flush();
+                let new_enddate = process_input_or_default(get_input(), enddate.map(|d| d.to_string()));
+        
+                // 업데이트 쿼리 실행
+                conn.exec_drop(
+                    "UPDATE Project 
+                     SET name = :name, location = :location, enddate = :enddate 
+                     WHERE projectID = :projid",
+                    params! {
+                        "name" => new_name,
+                        "location" => new_location,
+                        "enddate" => new_enddate,
+                        "projid" => &proj_id,
+                    },
+                )?;
+                println!("프로젝트 정보가 성공적으로 수정되었습니다.");
+            } else {
+                println!("존재하지 않는 프로젝트입니다.");
+            }
+        }            
     }
     Ok(())
 }
