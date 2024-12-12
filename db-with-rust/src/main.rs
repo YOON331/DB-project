@@ -1064,7 +1064,47 @@ fn search_data_table(conn: &mut PooledConn, table: TableList) -> std::result::Re
             }
         }
         TableList::Project => {
+            print!("검색할 프로젝트의 이름을 입력해주세요: ");
+            let _ = io::stdout().flush();
+            let proj_name = get_input();
 
+            let result: Vec<Project> = conn.exec_map(
+                "SELECT * FROM Project WHERE name LIKE :proj_name",
+                params! { "proj_name" => format!("%{}%", proj_name) },
+                |(projectid, name, location, startdate, enddate, clubid): (
+                    i32,
+                    String,
+                    Option<String>,
+                    Option<NaiveDate>,
+                    Option<NaiveDate>,
+                    i32,
+                )| {
+                    Project {
+                        projectid,
+                        name,
+                        location,
+                        startdate: startdate.map(|d| d.to_string()), // NaiveDate를 String으로 변환
+                        enddate: enddate.map(|d| d.to_string()),       // NaiveDate를 String으로 변환
+                        clubid,
+                    }
+                },
+            )?;
+
+            if result.is_empty() {
+                println!("검색 결과가 없습니다.");
+            } else {
+                for proj in result {
+                    println!(
+                        "{} {} {} {} {} {}",
+                        proj.projectid,
+                        proj.name,
+                        proj.location.unwrap_or("NULL".to_string()),
+                        proj.startdate.unwrap_or("NULL".to_string()),
+                        proj.enddate.unwrap_or("NULL".to_string()),
+                        proj.clubid,
+                    );
+                }
+            }
         }
     }
     Ok(())
